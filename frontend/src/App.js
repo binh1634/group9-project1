@@ -30,6 +30,19 @@ function App() {
   // 2. Hàm xử lý khi nhấn nút Thêm hoặc Cập nhật
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // --- BẮT ĐẦU CODE VALIDATION ---
+    if (!name.trim()) {
+      alert("Tên không được để trống");
+      return; // Dừng hàm lại
+    }
+
+    // Đây là một biểu thức Regex đơn giản để kiểm tra email
+    if (!/\S+@\S+\.\S+/.test(email)) {
+      alert("Email không hợp lệ (ví dụ: test@gmail.com)");
+      return; // Dừng hàm lại
+    }
+    // --- KẾT THÚC CODE VALIDATION ---
     const userData = { name, email };
 
     if (editingUser) {
