@@ -1,146 +1,50 @@
-
-//comment forntend
-//comment backend (binh)
-
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React from 'react';
+// 1. Import các thành phần cần thiết từ react-router-dom
+import { BrowserRouter, Routes, Route, useNavigate, Link } from 'react-router-dom';
 import './App.css';
+import ProfilePage from './pages/ProfilePage'; 
+// 2. Import các component trang (bạn sẽ tạo chúng ở bước tiếp theo)
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+// import ProfilePage from './pages/ProfilePage'; // Cho Hoạt động 2
 
-// !!!!! THAY ĐỔI IP NÀY BẰNG IP CỦA MÁY 1 !!!!!
-const API_URL = "http://192.168.1.18:3000/api"; // Giữ IP của bạn
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// --- Component Nút Logout Tạm Thời ---
+function LogoutButton() {
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    localStorage.removeItem('token'); // Xóa token
+    alert('Đã đăng xuất!');
+    navigate('/login'); // Chuyển về trang login
+  };
+  // Chỉ hiển thị nút Logout nếu có token trong localStorage
+  return localStorage.getItem('token') ? (
+    <button onClick={handleLogout} style={{ position: 'absolute', top: 10, right: 10 }}>
+      Đăng xuất
+    </button>
+  ) : null;
+}
+// ------------------------------------
 
 function App() {
-  const [users, setUsers] = useState([]);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  // State mới để biết chúng ta đang SỬA user nào (null = đang Thêm mới)
-  const [editingUser, setEditingUser] = useState(null);
-
-  // 1. Hàm lấy danh sách user (Không đổi)
-  const fetchUsers = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/users`);
-      setUsers(response.data);
-    } catch (error) {
-      console.error("Lỗi khi lấy users:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  // 2. Hàm xử lý khi nhấn nút Thêm hoặc Cập nhật
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // --- BẮT ĐẦU CODE VALIDATION ---
-    if (!name.trim()) {
-      alert("Tên không được để trống");
-      return; // Dừng hàm lại
-    }
-
-    // Đây là một biểu thức Regex đơn giản để kiểm tra email
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      alert("Email không hợp lệ (ví dụ: test@gmail.com)");
-      return; // Dừng hàm lại
-    }
-    // --- KẾT THÚC CODE VALIDATION ---
-    const userData = { name, email };
-
-    if (editingUser) {
-      // ------ LOGIC CẬP NHẬT (PUT) ------
-      try {
-        // Gọi API PUT, gửi kèm ID và data mới
-        await axios.put(`${API_URL}/users/${editingUser._id}`, userData);
-        setEditingUser(null); // Xong, quay lại mode "Thêm mới"
-      } catch (error) {
-        console.error("Lỗi khi cập nhật user:", error);
-      }
-    } else {
-      // ------ LOGIC THÊM MỚI (POST) (Như cũ) ------
-      try {
-        await axios.post(`${API_URL}/users`, userData);
-      } catch (error) {
-        console.error("Lỗi khi tạo user:", error);
-      }
-    }
-    fetchUsers(); // Tải lại danh sách
-    // Reset form
-    setName('');
-    setEmail('');
-  };
-
-  // 3. Hàm xử lý Xóa
-  const handleDelete = async (userId) => {
-    // Hỏi xác nhận trước khi xóa
-    if (window.confirm("Bạn có chắc muốn xóa user này?")) {
-      try {
-        await axios.delete(`${API_URL}/users/${userId}`);
-        fetchUsers(); // Tải lại danh sách
-      } catch (error) {
-        console.error("Lỗi khi xóa user:", error);
-      }
-    }
-  };
-
-  // 4. Hàm xử lý khi nhấn nút "Sửa"
-  const handleEdit = (user) => {
-    setEditingUser(user); // Đánh dấu là đang sửa user này
-    setName(user.name);     // Đưa data của user lên form
-    setEmail(user.email);
-  };
-
   return (
-    <div className="App">
-      <h1>Quản lý User (React App)</h1>
-
-      <form onSubmit={handleSubmit}>
-        {/* Tiêu đề form thay đổi tùy theo state */}
-        <h3>{editingUser ? 'Đang sửa User' : 'Thêm User Mới'}</h3>
-        <input
-          type="text"
-          placeholder="Tên"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        {/* Nút bấm thay đổi tùy theo state */}
-        <button type="submit">{editingUser ? 'Cập nhật' : 'Thêm'}</button>
-        
-        {/* Nút Hủy (chỉ hiện khi đang sửa) */}
-        {editingUser && (
-          <button type="button" onClick={() => {
-            setEditingUser(null);
-            setName('');
-            setEmail('');
-          }}>
-            Hủy
-          </button>
-        )}
-      </form>
-
-      <h3>Danh sách User (Từ MongoDB)</h3>
-      <ul>
-        {/* Dùng _id của MongoDB */}
-        {users.map(user => (
-          <li key={user._id}>
-            {user.name} - {user.email}
-            {/* Thêm 2 nút Sửa / Xóa */}
-            <button onClick={() => handleEdit(user)}>Sửa</button>
-            <button onClick={() => handleDelete(user._id)}>Xóa</button>
-          </li>
-        ))}
-      </ul>
-    </div>
+    // 3. Bọc toàn bộ ứng dụng trong BrowserRouter
+    <BrowserRouter>
+      {/* Bao gồm nút Logout tạm thời */}
+      <LogoutButton />
+      <div className="container">
+        {/* 4. Định nghĩa các routes (đường dẫn) bên trong <Routes> */}
+        <Routes>
+          {/* Khi URL là /login, hiển thị LoginPage */}
+          <Route path="/login" element={<LoginPage />} />
+          {/* Khi URL là /register, hiển thị RegisterPage */}
+          <Route path="/register" element={<RegisterPage />} />
+          {/* Route cho ProfilePage (sẽ dùng ở Hoạt động 2) */}
+          { <Route path="/profile" element={<ProfilePage />} /> }
+          {/* Route mặc định (ví dụ: chuyển về trang login nếu không khớp path nào) */}
+          <Route path="/" element={<LoginPage />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }
 
