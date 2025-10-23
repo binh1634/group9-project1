@@ -1,16 +1,21 @@
 const mongoose = require('mongoose');
 
-// Đây là "bản thiết kế" cho User trong CSDL
 const UserSchema = new mongoose.Schema({
-    name: {
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+
+    // --- BẮT ĐẦU THÊM CODE MỚI ---
+    password: {
         type: String,
-        required: true // Bắt buộc phải có tên
+        required: true // Mật khẩu là bắt buộc
     },
-    email: {
+    role: {
         type: String,
-        required: true, // Bắt buộc phải có email
-        unique: true // Email không được trùng
+        enum: ['user', 'admin'], // Chỉ cho phép 1 trong 2 giá trị này
+        default: 'user'         // Mặc định là 'user'
     }
-}, { timestamps: true }); // Tự động thêm 2 trường: createdAt và updatedAt
+    // --- KẾT THÚC THÊM CODE MỚI ---
+
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);
