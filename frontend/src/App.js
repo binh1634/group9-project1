@@ -1,6 +1,13 @@
+
 import React from 'react';
 // 1. Import các thành phần cần thiết từ react-router-dom
 import { BrowserRouter, Routes, Route, useNavigate, Link } from 'react-router-dom';
+
+//comment frontend
+//comment backend (binh)
+
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import './App.css';
 import ProfilePage from './pages/ProfilePage'; 
 // 2. Import các component trang (bạn sẽ tạo chúng ở bước tiếp theo)

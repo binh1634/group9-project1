@@ -5,12 +5,18 @@ const mongoose = require('mongoose');
 
 const userRoutes = require('./routes/user');
 
+const authRoutes = require('./routes/authRoutes'); 
 
 dotenv.config();
 const app = express();
 
+
 app.use(cors());
 app.use(express.json());
+
+
+app.use('/api/users', userRoutes);
+app.use('/api/auth', authRoutes);
 
 app.use('/api', userRoutes);
 

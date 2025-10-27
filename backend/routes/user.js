@@ -1,25 +1,53 @@
 const express = require('express');
 const router = express.Router();
 
-// Import controller mà chúng ta vừa tạo ở Bước 1
+// 1. Import Controller
 const userController = require('../controllers/userController');
 
-// Định nghĩa các đường dẫn (endpoints)
+// 2. Import Middlewares (Rất quan trọng cho Buổi 5)
+// (Bạn phải tạo 2 file này dựa theo hướng dẫn ở Hoạt động 2, 3, 4)
+const { authenticateToken, authorizeAdmin } = require('../middleware/auth');
+const upload = require('../middleware/upload'); // Middleware để upload file
 
-// Khi ai đó truy cập (GET) vào '/users',
-// nó sẽ gọi hàm 'getUsers' từ controller
-router.get('/users', userController.getUsers);
+/* -------------------------------------------------------------------------- */
+/* HOẠT ĐỘNG 1: AUTH                             */
+/* -------------------------------------------------------------------------- */
+// Đây là các route công khai (public)
+router.post('/signup', userController.signup);
+router.post('/login', userController.login);
 
-// Khi ai đó gửi (POST) đến '/users',
-// nó sẽ gọi hàm 'createUser' từ controller
-router.post('/users', userController.createUser);
+/* -------------------------------------------------------------------------- */
+/* HOẠT ĐỘNG 2: USER PROFILE                         */
+/* -------------------------------------------------------------------------- */
+// Các route này cần xác thực (phải login)
+// middleware 'authenticateToken' sẽ chạy trước
+router.get('/profile', authenticateToken, userController.getProfile);
+router.put('/profile', authenticateToken, userController.updateProfile);
 
-// Route cho SỬA: PUT /api/users/:id
-// Khi có request PUT, nó sẽ gọi hàm updateUser
-router.put('/users/:id', userController.updateUser);
+/* -------------------------------------------------------------------------- */
+/* HOẠT ĐỘNG 3: ADMIN                            */
+/* -------------------------------------------------------------------------- */
+// Các route này yêu cầu quyền Admin
+// Phải chạy 'authenticateToken' (để biết user là ai) 
+// VÀ 'authorizeAdmin' (để kiểm tra có phải admin không)
+router.get('/users', [authenticateToken, authorizeAdmin], userController.getAllUsers);
+router.delete('/users/:id', [authenticateToken, authorizeAdmin], userController.deleteUser);
 
-// Route cho XÓA: DELETE /api/users/:id
-// Khi có request DELETE, nó sẽ gọi hàm deleteUser
-router.delete('/users/:id', userController.deleteUser);
-// Xuất router này ra để file server.js có thể dùng
+/* -------------------------------------------------------------------------- */
+/* HOẠT ĐỘNG 4: NÂNG CAO                          */
+/* -------------------------------------------------------------------------- */
+// Quên mật khẩu (public)
+router.post('/forgot-password', userController.forgotPassword);
+router.post('/reset-password/:token', userController.resetPassword);
+
+// Upload Avatar (cần login)
+// 'upload.single('avatar')' là middleware xử lý file
+router.put(
+  '/profile/avatar',
+  authenticateToken,
+  upload.single('avatar'), // Tên field phải là 'avatar'
+  userController.uploadAvatar
+);
+
+// Xuất router
 module.exports = router;
