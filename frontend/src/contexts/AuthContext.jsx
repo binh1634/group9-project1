@@ -4,9 +4,15 @@ import api from "../services/api";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(
-    JSON.parse(localStorage.getItem("user")) || null
-  );
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem("user");
+    try {
+      const parsed = JSON.parse(savedUser);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  });
   const [token, setToken] = useState(localStorage.getItem("token") || "");
 
   // If there's a token but no user in context (e.g., page refresh), try to fetch profile

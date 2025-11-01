@@ -5,6 +5,8 @@ import { useAuth } from "../../contexts/AuthContext";
 export default function ProtectedRoute({ children, requiredRole }) {
   const { user, token } = useAuth();
 
+  console.log('ProtectedRoute state:', { token, user, requiredRole });
+
   if (!token) {
     return <Navigate to="/login" replace />;
   }

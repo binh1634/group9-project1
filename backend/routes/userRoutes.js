@@ -2,17 +2,7 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/userModel");
 const userController = require("../controllers/userController");
-const { protect } = require("../middleware/authMiddleware");
-
-// Middleware kiểm tra admin dựa trên user được đính vào req bởi `protect`
-const isAdmin = (req, res, next) => {
-  // bảo đảm req.user đến từ DB (protect đã đảm nhiệm)
-  console.debug(`userRoutes.isAdmin: checking user ${req.user?._id} role=${req.user?.role}`);
-  if (!req.user || req.user.role !== "admin") {
-    return res.status(403).json({ message: "Yêu cầu quyền admin" });
-  }
-  next();
-};
+const { protect, checkRole, adminOnly } = require("../middleware/authMiddleware");
 
 // 📘 GET /api/users/profile – Lấy thông tin user
 router.get("/profile", protect, async (req, res) => {
@@ -53,8 +43,8 @@ router.put("/profile", protect, async (req, res) => {
 });
 
 // --- Admin routes: quản lý users ---
-// GET /api/users/  -> danh sách tất cả người dùng (admin)
-router.get("/", protect, isAdmin, async (req, res) => {
+// GET /api/users - admin hoặc moderator có thể xem danh sách
+router.get("/", protect, checkRole("admin","moderator"), async (req, res) => {
   try {
     const users = await User.find().select("-password");
     res.json(users);
@@ -80,8 +70,8 @@ router.post("/", protect, isAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/users/:id  -> xóa user (admin)
-router.delete("/:id", protect, isAdmin, async (req, res) => {
+// DELETE /api/users/:id -> chỉ admin
+router.delete("/:id", protect, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
     const deleted = await User.findByIdAndDelete(id);
@@ -92,8 +82,8 @@ router.delete("/:id", protect, isAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/users/:id -> cập nhật user (admin)
-router.put("/:id", protect, isAdmin, async (req, res) => {
+// PUT /api/users/:id -> chỉ admin (cập nhật role)
+router.put("/:id", protect, adminOnly, async (req,res) => {
   try {
     const { id } = req.params;
     const { name, email, password, role } = req.body;

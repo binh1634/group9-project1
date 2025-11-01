@@ -14,19 +14,19 @@ export default function LoginForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // 🟢 Gọi API đăng nhập
       const res = await api.post("/auth/login", { email, password });
-      const { token, user } = res.data;
+      console.log('Login response:', res.data); // thêm log này
+      const { accessToken, user } = res.data;
 
-      // ✅ Lưu token và userId vào localStorage
-      localStorage.setItem("token", token);
-      localStorage.setItem("userId", user._id || user.id);
+      if (!user || !user._id) {
+        throw new Error('Invalid user data from server');
+      }
 
-      // Nếu dùng Context thì vẫn giữ lại
-      login(token, user);
+      localStorage.setItem("token", accessToken);
+      localStorage.setItem("userId", user._id);
+      login(accessToken, user);  // đảm bảo user có đầy đủ thông tin
 
       addToast("Đăng nhập thành công!", 'success');
-      // Nếu là admin chuyển tới trang admin
       if (user.role === "admin") {
         navigate("/admin");
       } else {

@@ -1,13 +1,18 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const cookieParser = require('cookie-parser');
 require("dotenv").config();
 
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 // Routes
 const authRoutes = require("./routes/authRoutes");
@@ -16,13 +21,14 @@ const profileRoutes = require("./routes/profileRoutes");
 
 
 
-
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/profile", profileRoutes);
 
-
-
+if (process.env.NODE_ENV !== 'production') {
+  const devRoutes = require('./routes/devRoutes');
+  app.use('/api/dev', devRoutes);
+}
 
 // Kết nối MongoDB
 if (!process.env.MONGO_URI) {
