@@ -4,15 +4,17 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
+const RefreshToken = require('../models/refreshToken'); // mới
+const cookieParser = require('cookie-parser'); // nếu cần
+const crypto = require('crypto'); // nếu chưa có
 require("dotenv").config();
-const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 
 // ==========================
 // ☁️ Cấu hình Cloudinary
-// ==========================
+// ========================== 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -76,18 +78,39 @@ router.post("/login", async (req, res) => {
       return res.status(500).json({ message: "Lỗi cấu hình máy chủ" });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+    // access token (short-lived)
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "15m",
     });
+
+    // create refresh token, store hashed in DB, and send raw in httpOnly cookie
+    const { raw: refreshRaw } = await createAndStoreRefreshToken(user._id);
+
+    const cookieOptions = {
+      httpOnly: true,
+      sameSite: process.env.COOKIE_SAME_SITE || 'Lax',
+      secure: process.env.COOKIE_SECURE === 'true', // true in prod with https
+      maxAge: (Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS) || 7) * 24 * 60 * 60 * 1000,
+    };
+
+    res.cookie('refreshToken', refreshRaw, cookieOptions);
 
     const userData = user.toObject();
     delete userData.password;
 
-    res.json({
+    // In development return the raw refresh token in the response body to
+    // make testing easier (do NOT return this in production).
+    const responsePayload = {
       message: "Đăng nhập thành công!",
-      token,
+      accessToken,
       user: userData,
-    });
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      responsePayload.refreshToken = refreshRaw;
+    }
+
+    res.json(responsePayload);
   } catch (err) {
     console.error("❌ Lỗi đăng nhập:", err.message);
     res.status(500).json({ message: "Lỗi server" });
@@ -97,8 +120,20 @@ router.post("/login", async (req, res) => {
 // ==========================
 // 🚪 Logout
 // ==========================
-router.post("/logout", (req, res) => {
-  res.json({ message: "Đăng xuất thành công (xoá token ở frontend)" });
+router.post("/logout", async (req, res) => {
+  try {
+    const raw = req.cookies?.refreshToken;
+    if (raw) {
+      const hash = crypto.createHash('sha256').update(raw).digest('hex');
+      await RefreshToken.findOneAndUpdate({ tokenHash: hash }, { revoked: true });
+    }
+    // Clear cookie on client
+    res.clearCookie('refreshToken', { httpOnly: true, sameSite: process.env.COOKIE_SAME_SITE || 'Lax' });
+    res.json({ message: "Đăng xuất thành công" });
+  } catch (err) {
+    console.error('Logout error', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // ==========================
@@ -176,6 +211,51 @@ router.post("/reset-password", async (req, res) => {
   } catch (err) {
     console.error("❌ Lỗi reset-password:", err);
     res.status(500).json({ message: "Lỗi server" });
+  }
+});
+
+// ==========================
+// 🔄 Tạo và lưu Refresh Token
+// ==========================
+const createAndStoreRefreshToken = async (userId) => {
+  const raw = crypto.randomBytes(64).toString('hex');
+  const hash = crypto.createHash('sha256').update(raw).digest('hex');
+  const days = Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS) || 7;
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  await RefreshToken.create({ user: userId, tokenHash: hash, expiresAt });
+  return { raw, expiresAt };
+};
+
+// ==========================
+// 🔄 Làm mới Access Token bằng Refresh Token
+// ==========================
+router.post('/refresh', async (req, res) => {
+  try {
+    const raw = req.cookies?.refreshToken;
+    if (!raw) return res.status(401).json({ message: 'No refresh token' });
+
+    const hash = crypto.createHash('sha256').update(raw).digest('hex');
+
+    const dbToken = await RefreshToken.findOne({ tokenHash: hash }).populate('user');
+    if (!dbToken || dbToken.revoked || dbToken.expiresAt < Date.now()) {
+      return res.status(403).json({ message: 'Invalid refresh token' });
+    }
+
+    const user = dbToken.user;
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Issue new access token
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '15m'
+    });
+
+    // Optionally: rotate refresh token (create new one, revoke old)
+    // For simplicity here we keep refresh token the same. To rotate, createAndStoreRefreshToken(user._id) then mark dbToken.revoked=true
+
+    res.json({ accessToken });
+  } catch (err) {
+    console.error('Refresh token error', err);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
