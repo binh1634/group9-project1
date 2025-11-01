@@ -21,13 +21,14 @@ const profileRoutes = require("./routes/profileRoutes");
 
 
 
-
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/profile", profileRoutes);
 
-
-
+if (process.env.NODE_ENV !== 'production') {
+  const devRoutes = require('./routes/devRoutes');
+  app.use('/api/dev', devRoutes);
+}
 
 // Kết nối MongoDB
 if (!process.env.MONGO_URI) {

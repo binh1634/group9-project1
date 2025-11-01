@@ -83,3 +83,11 @@ exports.allowSelfOrAdmin = (req, res, next) => {
   // Còn lại → bị chặn
   res.status(403).json({ message: "Bạn chỉ có thể thao tác với tài khoản của chính mình" });
 };
+
+// Middleware: Kiểm tra nhiều role
+// Sử dụng: checkRole('admin', 'moderator')
+exports.checkRole = (...allowedRoles) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: "Chưa xác thực" });
+  if (allowedRoles.includes(req.user.role)) return next();
+  return res.status(403).json({ message: "Bạn không có quyền truy cập" });
+};
